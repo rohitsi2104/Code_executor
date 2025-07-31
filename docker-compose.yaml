@@ -1,0 +1,44 @@
+version: "3.8"
+
+services:
+  api:
+    build: .
+    command: ["uvicorn", "api.main:app", "--host", "0.0.0.0", "--port", "8080", "--reload"]
+    ports:
+      - "8080:8080"
+    volumes:
+      - .:/app
+    depends_on:
+      - pyspark_runner
+      - python310
+      - python311
+    networks:
+      - code_net
+
+  pyspark_runner:
+    build:
+      context: .
+      dockerfile: containers/pyspark/Dockerfile
+    ports:
+      - "8081:8080"
+    networks:
+      - code_net
+
+  python310:
+    build:
+      context: .
+      dockerfile: containers/python/3.10.0/Dockerfile
+    # no ports needed if invoked via docker network from api
+    networks:
+      - code_net
+
+  python311:
+    build:
+      context: .
+      dockerfile: containers/python/3.11.0/Dockerfile
+    networks:
+      - code_net
+
+networks:
+  code_net:
+    driver: bridge
