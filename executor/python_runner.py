@@ -1,21 +1,19 @@
 import asyncio
 import tempfile
 import os
-from executor.base import BaseRunner
+from executor.base import CodeRunner
 
-class PythonRunner(BaseRunner):
+class PythonRunner(CodeRunner):
     def __init__(self, version: str):
         super().__init__()
-        self.version = version  # e.g. "3.10.0" or "3.11.0"
+        self.version = version
 
     async def run(self, code: str, stdin: str):
-        # Write code to a temp file
         with tempfile.NamedTemporaryFile(suffix=".py", delete=False) as src:
             src.write(code.encode())
             src_path = src.name
 
         try:
-            # Invoke the appropriate python interpreter
             proc = await asyncio.create_subprocess_exec(
                 f"python{self.version}", src_path,
                 stdin=asyncio.subprocess.PIPE,

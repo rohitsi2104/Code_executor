@@ -4,8 +4,8 @@ from executor.python_runner import PythonRunner
 # Map (language, version) → runner instance
 RUNTIMES = {
     ("pyspark", "3.1"):      PySparkRunner(),
-    ("python",  "3.10.0"):   PythonRunner(),
-    ("python",  "3.11.0"):   PythonRunner(),
+    ("python",  "3.10.0"):   PythonRunner('3.10.0'),
+    ("python",  "3.11.0"):   PythonRunner('3.11.0'),
 }
 
 def get_runner(language: str, version: str):
@@ -17,3 +17,5 @@ def get_runner(language: str, version: str):
     if key not in RUNTIMES:
         raise ValueError(f"Unsupported language/version: {language} {version}")
     return RUNTIMES[key]
+
+

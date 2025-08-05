@@ -28,7 +28,6 @@ services:
     build:
       context: .
       dockerfile: containers/python/3.10.0/Dockerfile
-    # no ports needed if invoked via docker network from api
     networks:
       - code_net
 

@@ -37,11 +37,11 @@ class PySparkRunner(CodeRunner):
     version = "3.1"
 
     async def run(self, code: str, stdin: str = "") -> dict:
-        filename = "script.py"  # Dynamically derived
+        filename = "script.py"
         try:
             async with httpx.AsyncClient() as client:
                 response = await client.post(
-                    "http://pyspark_runner:8080/mcp/run",
+                    "http://pyspark_runner:8080/execute",
                     json={
                         "language": "pyspark",
                         "version": self.version,
