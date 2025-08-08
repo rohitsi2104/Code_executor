@@ -1,33 +1,26 @@
-import asyncio
-import tempfile
-import os
+import httpx
 from executor.base import CodeRunner
 
 class PythonRunner(CodeRunner):
     def __init__(self, version: str):
-        super().__init__()
         self.version = version
 
-    async def run(self, code: str, stdin: str):
-        with tempfile.NamedTemporaryFile(suffix=".py", delete=False) as src:
-            src.write(code.encode())
-            src_path = src.name
+    def _service_name(self) -> str:
+        # Expect versions like "3.10" or "3.10.0"
+        parts = self.version.split(".")
+        if len(parts) < 2:
+            raise ValueError(f"Unsupported Python version format: {self.version}")
+        return f"python{parts[0]}{parts[1]}"  # python310 or python311
 
-        try:
-            proc = await asyncio.create_subprocess_exec(
-                f"python{self.version}", src_path,
-                stdin=asyncio.subprocess.PIPE,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE
-            )
-            stdout, stderr = await proc.communicate(stdin.encode())
-            return {
-                "stdout": stdout.decode(),
-                "stderr": stderr.decode(),
-                "exit_code": proc.returncode
-            }
-        finally:
-            try:
-                os.remove(src_path)
-            except OSError:
-                pass
+    async def run(self, code: str, stdin: str = ""):
+        url = f"http://{self._service_name()}:8080/execute"
+        payload = {
+            "language": "python",
+            "version": self.version,
+            "code": code,
+            "stdin": stdin or ""
+        }
+        async with httpx.AsyncClient(timeout=120) as client:
+            resp = await client.post(url, json=payload)
+            resp.raise_for_status()
+            return resp.json()

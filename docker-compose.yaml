@@ -1,43 +1,113 @@
 version: "3.8"
 
+networks:
+  public_net:
+    driver: bridge
+  internal_net:
+    driver: bridge
+    internal: true   # 🔒 runners have no internet & are not host-reachable
+
 services:
   api:
     build: .
     command: ["uvicorn", "api.main:app", "--host", "0.0.0.0", "--port", "8080", "--reload"]
     ports:
       - "8080:8080"
+    depends_on:
+      python310:
+        condition: service_healthy
+      python311:
+        condition: service_healthy
+      pyspark_runner:
+        condition: service_healthy
     volumes:
       - .:/app
-    depends_on:
-      - pyspark_runner
-      - python310
-      - python311
     networks:
-      - code_net
-
-  pyspark_runner:
-    build:
-      context: .
-      dockerfile: containers/pyspark/Dockerfile
-    ports:
-      - "8081:8080"
-    networks:
-      - code_net
+      - public_net
+      - internal_net
+    environment:
+      API_HOST: "0.0.0.0"
+      API_PORT: "8080"
+      # DO NOT set DISABLE_DNS here – API must resolve internal service names
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8080/docs', timeout=2)"]
+      interval: 10s
+      timeout: 3s
+      retries: 20
+      start_period: 5s
+    restart: unless-stopped
 
   python310:
     build:
       context: .
       dockerfile: containers/python/3.10.0/Dockerfile
     networks:
-      - code_net
+      - internal_net
+    environment:
+      DISABLE_DNS: "1"     # ✅ offline at runtime
+    read_only: true
+    tmpfs:
+      - /tmp               # ✅ give Python a writable temp dir
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8080/health', timeout=2)"]
+      interval: 10s
+      timeout: 3s
+      retries: 20
+      start_period: 5s
+    restart: unless-stopped
 
   python311:
     build:
       context: .
       dockerfile: containers/python/3.11.0/Dockerfile
     networks:
-      - code_net
+      - internal_net
+    environment:
+      DISABLE_DNS: "1"
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8080/health', timeout=2)"]
+      interval: 10s
+      timeout: 3s
+      retries: 20
+      start_period: 5s
+    restart: unless-stopped
 
-networks:
-  code_net:
-    driver: bridge
+  pyspark_runner:
+    build:
+      context: .
+      dockerfile: containers/pyspark/Dockerfile
+    networks:
+      - internal_net
+    environment:
+      DISABLE_DNS: "1"
+      # Optional: JAVA_HOME for pyspark if needed (usually auto-detects with openjdk)
+      # JAVA_HOME: "/usr/lib/jvm/java-17-openjdk-amd64"
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8080/health', timeout=3)"]
+      interval: 12s
+      timeout: 4s
+      retries: 25
+      start_period: 10s
+    restart: unless-stopped

@@ -29,32 +29,54 @@
 
 
 
+# import httpx
+# from executor.base import CodeRunner
+
+# class PySparkRunner(CodeRunner):
+#     image = "piston_executor_pyspark:latest"
+#     version = "3.1"
+
+#     async def run(self, code: str, stdin: str = "") -> dict:
+#         filename = "script.py"
+#         try:
+#             async with httpx.AsyncClient() as client:
+#                 response = await client.post(
+#                     "http://pyspark_runner:8080/execute",
+#                     json={
+#                         "language": "pyspark",
+#                         "version": self.version,
+#                         "filename": filename,
+#                         "code": code,
+#                         "stdin": stdin,
+#                     }
+#                 )
+#             response.raise_for_status()
+#             return response.json()
+#         except Exception as e:
+#             return {
+#                 "stdout": "",
+#                 "stderr": str(e),
+#                 "exit_code": 1
+#             }
+
+
+
 import httpx
 from executor.base import CodeRunner
 
 class PySparkRunner(CodeRunner):
-    image = "piston_executor_pyspark:latest"
-    version = "3.1"
+    def __init__(self, version: str = "3.1"):
+        self.version = version
 
-    async def run(self, code: str, stdin: str = "") -> dict:
-        filename = "script.py"
-        try:
-            async with httpx.AsyncClient() as client:
-                response = await client.post(
-                    "http://pyspark_runner:8080/execute",
-                    json={
-                        "language": "pyspark",
-                        "version": self.version,
-                        "filename": filename,
-                        "code": code,
-                        "stdin": stdin,
-                    }
-                )
-            response.raise_for_status()
-            return response.json()
-        except Exception as e:
-            return {
-                "stdout": "",
-                "stderr": str(e),
-                "exit_code": 1
-            }
+    async def run(self, code: str, stdin: str = ""):
+        url = "http://pyspark_runner:8080/execute"
+        payload = {
+            "language": "pyspark",
+            "version": self.version,
+            "code": code,
+            "stdin": stdin or ""
+        }
+        async with httpx.AsyncClient(timeout=300) as client:
+            resp = await client.post(url, json=payload)
+            resp.raise_for_status()
+            return resp.json()

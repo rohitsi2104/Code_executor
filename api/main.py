@@ -71,28 +71,53 @@
 
 
 
+# import os
+# from fastapi import FastAPI
+# from fastapi_mcp import FastApiMCP
+
+# # bring in your security init
+# from config.settings import init_security, API_HOST, API_PORT
+
+# # import your single router (which now handles both /mcp/run and /execute)
+# from api.routes.execute import router as execution_router
+
+# # ── Apply all in-process hardening before anything else ──
+# init_security()
+
+# # ── FastAPI setup ──
+# app = FastAPI(title="PySpark MCP Executor")
+
+# # include your combined execution router
+# app.include_router(execution_router)
+
+# # mount MCP on /mcp
+# mcp = FastApiMCP(app)
+# mcp.mount()
+
+# if __name__ == "__main__":
+#     import uvicorn
+#     uvicorn.run("api.main:app", host=API_HOST, port=API_PORT, reload=True)
+
+
+
+
+# api/main.py
 import os
 from fastapi import FastAPI
 from fastapi_mcp import FastApiMCP
-
-# bring in your security init
 from config.settings import init_security, API_HOST, API_PORT
-
-# import your single router (which now handles both /mcp/run and /execute)
 from api.routes.execute import router as execution_router
 
-# ── Apply all in-process hardening before anything else ──
-init_security()
-
-# ── FastAPI setup ──
-app = FastAPI(title="PySpark MCP Executor")
-
-# include your combined execution router
+app = FastAPI(title="Code Executor API")   # <-- define app first
 app.include_router(execution_router)
 
-# mount MCP on /mcp
 mcp = FastApiMCP(app)
 mcp.mount()
+
+@app.on_event("startup")
+def _secure_startup():
+    # Runs AFTER imports; reads env flags (DISABLE_DNS) safely
+    init_security()
 
 if __name__ == "__main__":
     import uvicorn
